@@ -37,6 +37,9 @@
                         @csrf @method('DELETE')
                         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this employee?')">Delete</button>
                     </form>
+                    <a href="{{ route('users.create', ['EmpID' => $employee->EmpID]) }}" class="btn btn-success">Make Account</a>
+
+
                 </td>
             </tr>
             @endforeach

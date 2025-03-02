@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Employee;
 
 class UserController extends Controller
 {
@@ -15,9 +16,16 @@ class UserController extends Controller
         return view('user.index', compact('users'));
     } 
 
-    public function create() {
-        return view('user.create');
+    public function create(Request $request) {
+        $employee = null;
+    
+        if ($request->filled('EmpID')) {
+            $employee = Employee::find($request->EmpID);
+        }
+    
+        return view('user.create', compact('employee'));
     }
+    
  
     public function store(Request $request) {
         $request->validate([
@@ -25,18 +33,40 @@ class UserController extends Controller
             'LastName' => 'required|string|max:100',
             'Username' => 'required|string|max:100|unique:users,Username',
             'Password' => 'required|string|min:6',
-            'UserRole' => 'required|in:Admin,SystemController,Employee'
+            'UserRole' => 'required|in:Admin,SystemController,Employee',
+            'EmpID' => 'nullable|exists:employees,EmpID', // EmpID is optional
         ]);
+    
+        // Check if EmpID is provided
+        if ($request->filled('EmpID')) {
+            $employee = Employee::find($request->EmpID);
+            if ($employee) {
+                $firstName = $employee->FirstName;
+                $lastName = $employee->LastName;
+    
+                // Update employee's Username field
+                $employee->update(['Username' => $request->Username]);
+            } else {
+                return redirect()->back()->with('error', 'Employee not found.');
+            }
+        } else {
+            // If no EmpID, use the input fields for FirstName and LastName
+            $firstName = $request->FirstName;
+            $lastName = $request->LastName;
+        }
+    
+        // Create user with correct FirstName and LastName
         User::create([
-            'FirstName' => $request->FirstName,
-            'LastName' => $request->LastName,
+            'FirstName' => $firstName, // Use the dynamically assigned variable
+            'LastName' => $lastName,   // Use the dynamically assigned variable
             'Username' => $request->Username,
             'Password' => Hash::make($request->Password),
             'UserRole' => $request->UserRole,
         ]);
     
-        return redirect()->route('user.index')->with('success', 'Employee added successfully!');
+        return redirect()->route('user.index')->with('success', 'User created successfully!');
     }
+    
     
     public function edit($id)
     {
@@ -103,6 +133,34 @@ class UserController extends Controller
         return redirect()->route('login')->with('success', 'Logged out successfully!');
     }
     
+    public function makeAccount(Request $request, $id)
+{
+    // Find the employee
+    $employee = Employee::findOrFail($id);
+
+    // Validate the request
+    $request->validate([
+        'FirstName' => 'required|string|max:100',
+        'LastName' => 'required|string|max:100',
+        'Username' => 'required|string|max:100|unique:users,Username',
+        'Password' => 'required|string|min:6',
+        'UserRole' => 'required|in:Admin,SystemController,Employee'
+    ]);
+    User::create([
+        'FirstName' => $request->FirstName,
+        'LastName' => $request->LastName,
+        'Username' => $request->Username,
+        'Password' => Hash::make($request->Password),
+        'UserRole' => $request->UserRole,
+    ]);
+
+    // Update the employee's Username
+    $employee->update([
+        'Username' => $request->Username,
+    ]);
+
+    return redirect()->back()->with('success', 'User account created successfully.');
+}
 }
 
 
